@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 20px auto;
+            padding: 20px;
+        }
+        .container {
+            background-color: #f7f7f7;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .input-group {
+            margin-bottom: 15px;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+        input {
+            width: 100%;
+            padding: 8px;
+            margin-bottom: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+        button {
+            background-color: #4CAF50;
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        button:hover {
+            background-color: #45a049;
+        }
+        #error {
+            color: red;
+            margin: 10px 0;
+        }
+        #result {
+            margin-top: 20px;
+            padding: 15px;
+            background-color: #e8f5e9;
+            border-radius: 4px;
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h2>Autocorrelation Test Calculator</h2>
+        
+        <div class="input-group">
+            <label for="i">Starting Position (i):</label>
+            <input type="number" id="i" placeholder="Enter starting position">
+        </div>
+
+        <div class="input-group">
+            <label for="m">Gap (m):</label>
+            <input type="number" id="m" placeholder="Enter gap size">
+        </div>
+
+        <div class="input-group">
+            <label for="N">Total Numbers (N):</label>
+            <input type="number" id="N" placeholder="Enter total number of values">
+        </div>
+
+        <div class="input-group">
+            <label for="numbers">Numbers (comma-separated):</label>
+            <input type="text" id="numbers" placeholder="Example: 0.93,0.84,0.62,...">
+        </div>
+
+        <div class="input-group">
+            <label for="criticalValue">Critical Value (e.g., 1.96):</label>
+            <input type="number" step="any" id="criticalValue" placeholder="Enter critical value">
+        </div>
+
+        <button onclick="calculateAutoCorrelation()">Calculate</button>
+
+        <div id="error"></div>
+        <div id="result"></div>
+    </div>
+
+    <script>
+        function calculateM(i, m, N) {
+            return Math.floor((N - i) / m - 1);
+        }
+
+        function calculateAutoCorrelation() {
+            // Get input values
+            const i = parseInt(document.getElementById('i').value);
+            const m = parseInt(document.getElementById('m').value);
+            const N = parseInt(document.getElementById('N').value);
+            const numbersStr = document.getElementById('numbers').value;
+            const criticalValue = parseFloat(document.getElementById('criticalValue').value);
+            
+            const errorDiv = document.getElementById('error');
+            const resultDiv = document.getElementById('result');
+            
+            try {
+                // Input validation
+                if (!i || !m || !N || !numbersStr || isNaN(criticalValue)) {
+                    throw new Error('Please fill all fields');
+                }
+
+                // Parse numbers
+                const numbers = numbersStr.split(',').map(num => {
+                    const val = parseFloat(num.trim());
+                    if (isNaN(val)) throw new Error('Invalid number in sequence');
+                    return val;
+                });
+
+                if (numbers.length !== N) {
+                    throw new Error(`Please provide exactly ${N} numbers`);
+                }
+
+                // Calculate M
+                const M = calculateM(i, m, N);
+                
+                if (M < 1) {
+                    throw new Error('Invalid parameters: M must be at least 1');
+                }
+
+                // Calculate ρ̂m
+                let sum = 0;
+                for (let k = 0; k <= M; k++) {
+                    const index1 = i + k * m - 1;
+                    const index2 = i + (k + 1) * m - 1;
+                    if (index2 >= numbers.length) break;
+                    sum += numbers[index1] * numbers[index2];
+                }
+                const rho = (1 / (M + 1)) * sum - 0.25;
+
+                // Calculate σ̂ρm
+                const sigma = Math.sqrt((13 * M + 7)) / (12 * (M + 1));
+
+                // Calculate test statistic
+                const testStat = Math.abs(rho) / sigma;
+
+                // Display results
+                errorDiv.textContent = '';
+                resultDiv.style.display = 'block';
+                resultDiv.innerHTML = `
+                    <h3>Results:</h3>
+                    <p>M = ${M}</p>
+                    <p>ρ̂m = ${rho.toFixed(4)}</p>
+                    <p>σ̂ρm = ${sigma.toFixed(4)}</p>
+                    <p>Test Statistic = ${testStat.toFixed(4)}</p>
+                    <p><strong>Conclusion:</strong> ${
+                        testStat < criticalValue 
+                            ? "Fail to reject H₀: Numbers appear to be independent" 
+                            : "Reject H₀: Numbers appear to be dependent"
+                    }</p>
+                `;
+            } catch (err) {
+                errorDiv.textContent = err.message;
+                resultDiv.style.display = 'none';
+            }
+        }
+    </script>
+</body>
+</html>
